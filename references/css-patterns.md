@@ -112,18 +112,75 @@ items, and individual components may add their own "breathing room" above and be
 .c-band { padding-inline: var(--grid-gutter); }
 ```
 
-## Container-relative tokens
+## Container-relative tokens anchored to one wrapper (`cqi` + `@property`)
 
-Generate a second set with `cqi` when a component must scale with its slot (a card
-that appears in a sidebar and in the main column):
+Source: Kevin Powell, "Fixing fluid typography" (2026), building on Ana Tudor's
+"Using container query units relative to an outer container". Verified in Chromium.
+
+### The three problems
+
+1. **Squishy zone.** A `vi`/`vw` token whose @max lies beyond the wrapper's `max-width`
+   keeps growing after the layout stopped (Kevin's demo: `clamp(1rem, 0.5rem + 3cqi,
+   3.25rem)` tops out at ~1467px while the wrapper stops at 75rem = 1200px). Utopia's
+   defaults avoid it because @max viewport = `--grid-max-width`; several wrappers or a
+   mismatched @max bring it back.
+2. **`cqi` without a container is `vi`.** Container units fall back to the small
+   viewport unless an ancestor has `container-type`.
+3. **Nested containers break consistency.** `cqi` resolves against the *nearest
+   ancestor* container. Make cards containers (for `@container` layout switches) and
+   the same `var(--step-2)` renders a different size in every card.
+
+### The fix
+
+A custom property registered with `syntax: "<length>"` is computed where it is
+declared and inherited as an absolute length (unregistered ones inherit the raw token
+stream and resolve at the `var()` site). Declaring the token on the wrapper's children
+pins its `cqi` to the wrapper for every descendant.
 
 ```css
-.c-card-host { container-type: inline-size; }
-.c-card {
-  --card-title: clamp(1.35rem, 1.2631rem + 0.3864cqi, 1.5625rem); /* utopia.py clamp ... --relative-to container */
-  font-size: var(--card-title);
+/* python3 scripts/utopia.py type --min-width 324 --max-width 1160 --register --container .u-container */
+@property --step-2 { syntax: "<length>"; initial-value: 25.92px; inherits: true; }
+
+:root {
+  --step-2-reset: clamp(1.62rem, 1.4909rem + 0.6376cqi, 1.9531rem); /* unregistered twin: raw clamp() */
+  --step-2: var(--step-2-reset);                                     /* fallback: no container → small viewport */
 }
+
+.u-container { container-type: inline-size; max-width: 77.5rem; padding-inline: var(--grid-gutter); }
+.u-container > * { --step-2: var(--step-2-reset); }   /* computed against .u-container, inherited as px */
+
+.card { container-type: inline-size; }                /* for @container queries; --step-2 unaffected */
+.card__body { display: grid; gap: var(--space-s);
+  @container (width > 40ch) { grid-template-columns: 5.5rem 1fr; } }
+
+/* Opt back into card-relative sizing for one component: assign the twin on ITS children */
+.card--fluid > * { --step-2: var(--step-2-reset); }
+
+h2 { font-size: var(--step-2); }                      /* identical in every card */
 ```
+
+Measured in Chromium (wrapper content 720px → all three h2 = 28.45px; naive `cqi`
+gave 25.92px in the cards; the opt-in card re-evaluates to 25.92px).
+
+### Rules
+
+- `initial-value` **in px**. `1rem` looks harmless but is not computationally
+  independent; Chromium and Firefox discard the entire `@property` rule silently and the
+  token silently degrades to naive `cqi`. The script uses the token's @min px value.
+- Declare on `.wrapper > *`, never on `.wrapper`: an element is never its own query
+  container, so a declaration on the wrapper itself would measure the wrapper's ancestor.
+  The same applies to the reset: `.card > *`, not `.card`.
+- Keep the `:root` fallback; outside any container a registered property would
+  otherwise be its `initial-value`.
+- `cqi` is 1% of the container's **content box**. Feed the script content widths
+  (viewport − 2 × gutter at each pole) or give the container no inline padding.
+- Registering ~26 tokens (8 steps, 9 sizes, 9 pairs) is fine; purge unused ones.
+- `inherits: true` is what makes the pinned value reach nested components. Naming the
+  container (`container: wrapper / inline-size`) is optional for units; don't reuse the
+  same name on nested containers if you also write named `@container` queries.
+- Accessibility: a container capped in rem behaves like the viewport under text zoom
+  until it hits `max-width`; run the WCAG check with the container widths as @min/@max.
+- Baseline: `@property` and container units are widely available since 2024.
 
 ## Overriding a step systematically
 

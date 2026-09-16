@@ -37,3 +37,6 @@ logs/
 # Python
 __pycache__/
 *.pyc
+
+# Local reference material (not part of the skill)
+/screens/

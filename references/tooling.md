@@ -12,10 +12,12 @@ Dependency-free Python 3 port of `utopia-core`. Output matches the utopia.fyi CS
 | `space --min-width --max-width --min-size --max-size --negative 0.75,0.5,0.25 --positive 1.5,2,3,4,6 --pairs s-l 2xs-xl [--all-pairs] [--px] [--prefix space]` | sizes, one-up pairs, custom pairs |
 | `grid ... --gutter s-l --column xl --columns 12` | `--grid-*` tokens plus `.u-container` / `.u-grid` |
 | `from-url "<utopia.fyi URL>"` | type + space + grid from a calculator URL |
+| `type|space|clamps|from-url ... --register [--container .u-container]` | container-relative (`cqi`) tokens anchored to one wrapper: `@property` registrations with px `initial-value`, `-reset` twins, `:root` fallback and `.u-container > *` block (see `css-patterns.md`) |
 
 Common flags: `--format css|json|table`, `--at 768` (extra px column in table output),
 `--relative-to` (default `viewport-width` = `vw`, like the website; `utopia-core`
-defaults to `vi`).
+defaults to `vi`). `--register` implies `--relative-to container`; pass the container's
+*content* widths as `--min-width`/`--max-width`.
 
 Typical agent flow:
 

@@ -59,7 +59,8 @@ python3 scripts/utopia.py clamp --min-width 320 --max-width 1240 16 48
 ```
 
 Run `python3 scripts/utopia.py --help` for all options (`--format json|table`, `--at`,
-`--relative-to container`, `--px`, `--all-pairs`, `--label-style tailwind`).
+`--relative-to container`, `--register` for container-anchored tokens, `--px`,
+`--all-pairs`, `--label-style tailwind`).
 
 ## Coverage
 
@@ -75,6 +76,7 @@ Techniques covered, with their sources on utopia.fyi:
 | Fluid space palette, t-shirt sizes, one-up and custom pairs, flow utility | Space calculator; *Painting with a fluid space palette*; *Designing with a fluid space palette*; *Generate all pair permutations* |
 | Fluid grid: gutters and columns from the palette, container max width | Grid calculator; *Designing a Utopian layout grid* |
 | WCAG 1.4.4 check for fluid text | `utopia-core` |
+| Container-relative tokens (`cqi`) anchored to one wrapper with `@property` (`--register`) | Kevin Powell, *Fixing fluid typography* (2026); Ana Tudor, *Using container query units relative to an outer container* |
 | `utopia-core`, `utopia-core-scss`, `postcss-utopia` | *Utopia SCSS library*; *Readable clamp() with PostCSS Utopia* |
 | Figma plugins, variables and modes, Kickstarter file | *Getting started with Utopia Figma plugins*; *Figma variables*; *Figma plugin and kickstarter V2*; *Utopian project kickstarter* |
 | Type scale graphs and the introduction video | *Type scale graphs*; *A video introduction to Utopia*; *Fluid responsive typography: easy when you know how* |
@@ -84,4 +86,6 @@ Techniques covered, with their sources on utopia.fyi:
 Utopia is the work of [James Gilyead](https://utopia.fyi) and
 [Trys Mudford](https://trysmudford.com), supported by Clearleft. This repository only
 repackages their published material for agent use; the calculators, libraries and blog
-posts remain theirs.
+posts remain theirs. The container-relative profile follows
+[Kevin Powell's "Fixing fluid typography"](https://www.youtube.com/watch?v=q-_cIlttYBc)
+and [Ana Tudor's article on outer-container units](https://blog.master.dev/using-container-query-units-relative-to-an-outer-container/).

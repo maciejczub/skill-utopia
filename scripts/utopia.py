@@ -29,6 +29,9 @@ Usage examples:
   # Everything at once, from a utopia.fyi calculator URL (the @link comment)
   utopia.py from-url "https://utopia.fyi/type/calculator?c=360,18,1.2,1240,20,1.25,5,2,&s=0.75|0.5|0.25,1.5|2|3|4|6,s-l&g=s,l,xl,12"
 
+  # Container-relative tokens pinned to one wrapper (cqi + @property), see references/css-patterns.md
+  utopia.py type --min-width 324 --max-width 1160 --register --container .u-container
+
 Add --format json to any command for machine-readable output, --format table
 for px values at @min / @max (and --at WIDTH for an intermediate viewport).
 """
@@ -242,6 +245,10 @@ def calculate_grid(space, gutter="s-l", column="xl", columns=12):
     by_label = {s["label"]: s for s in space["sizes"]}
     g = gutter.split("-")
     g_min, g_max = (g[0], g[-1])
+    for label in (g_min, g_max, column):
+        if label not in by_label:
+            sys.exit(f"grid: space size '{label}' does not exist in this palette "
+                     f"(available: {', '.join(by_label)}). Adjust --gutter/--column or the multipliers.")
     gutter_min = by_label[g_min]["minSize"]
     gutter_max = by_label[g_max]["maxSize"]
     col_max = by_label[column]["maxSize"]
@@ -391,6 +398,60 @@ def css_grid(grid, prefix="space", link=None):
     return "\n".join(out)
 
 
+def registered_tokens(steps=None, space=None, clamps=None, type_prefix="step", space_prefix="space", use_px=False):
+    tokens = []
+    for st in steps or []:
+        tokens.append({"name": f"--{type_prefix}-{st['label']}", "clamp": st["clamp"], "minPx": st["minFontSize"]})
+    if space:
+        key = "clampPx" if use_px else "clamp"
+        for sz in space["sizes"] + space["oneUpPairs"] + space["customPairs"]:
+            tokens.append({"name": f"--{space_prefix}-{sz['label']}", "clamp": sz[key], "minPx": sz["minSize"]})
+    for c in clamps or []:
+        tokens.append({"name": f"--{space_prefix}-{c['label']}", "clamp": c["clamp"], "minPx": c["minPx"]})
+    return tokens
+
+
+def css_registered(tokens, container=".u-container", link=None):
+    """Container-relative tokens anchored to ONE query container via @property.
+
+    tokens: list of {"name": "--step-2", "clamp": "clamp(... cqi ...)", "minPx": 25.92}
+    Technique: Kevin Powell, "Fixing fluid typography" (2026), after Ana Tudor.
+    A registered <length> custom property is computed where it is declared and
+    inherited as an absolute length, so declaring it on the container's children
+    pins the cqi units to that container even inside nested query containers.
+    """
+    out = []
+    if link:
+        out.append(f"/* @link {link} */\n")
+    out += [
+        "/* Container-relative tokens (cqi) anchored to one query container.",
+        f"   {container} must be a query container; cqi measures its CONTENT box,",
+        "   so @min/@max must be the container's content widths, not the viewport.",
+        "   initial-value must be px: rem/em make browsers drop the whole @property. */",
+        "",
+    ]
+    for t in tokens:
+        out.append(f"@property {t['name']} {{ syntax: \"<length>\"; initial-value: {r4(t['minPx'])}px; inherits: true; }}")
+    out += ["", ":root {", "  /* Unregistered copies keep the raw clamp() and re-evaluate wherever they are assigned */"]
+    for t in tokens:
+        out.append(f"  {t['name']}-reset: {t['clamp']};")
+    out.append("")
+    out.append("  /* Fallback outside any query container: cqi resolves against the small viewport */")
+    for t in tokens:
+        out.append(f"  {t['name']}: var({t['name']}-reset);")
+    out += ["}", "", f"{container} {{", "  container-type: inline-size;", "}", "",
+            "/* Declared on the container's CHILDREN: an element is never its own query container.",
+            f"   Computed once against {container}, then inherited as a length by every descendant,",
+            "   regardless of nested containers (cards, sidebars) on the way. */",
+            f"{container} > * {{"]
+    for t in tokens:
+        out.append(f"  {t['name']}: var({t['name']}-reset);")
+    out += ["}", "",
+            "/* To re-evaluate a token against a nested container, assign the -reset copy on ITS children:",
+            f"   .card {{ container-type: inline-size; }}  .card > * {{ {tokens[0]['name']}: var({tokens[0]['name']}-reset); }} */"]
+    return "\n".join(out)
+
+
 def table(rows, min_width, max_width, at=None):
     hdr = ["label", "@min", "@max"] + ([f"@{num(at)}"] if at else [])
     lines = [" | ".join(hdr)]
@@ -409,6 +470,13 @@ def table(rows, min_width, max_width, at=None):
 
 def floats(s):
     return [float(v) for v in s.split(",") if v.strip()]
+
+
+def add_register(p):
+    p.add_argument("--register", action="store_true",
+                   help="container-relative tokens anchored to one container via @property (implies cqi)")
+    p.add_argument("--container", default=".u-container",
+                   help="query container selector for --register (default .u-container)")
 
 
 def add_widths(p):
@@ -446,6 +514,7 @@ def main(argv=None):
     p.add_argument("pairs", nargs="+", help="min-max px pairs, e.g. 16-48 40-18")
     p.add_argument("--px", action="store_true")
     p.add_argument("--prefix", default="space")
+    add_register(p)
 
     p = sub.add_parser("type", help="fluid type scale")
     add_widths(p)
@@ -457,12 +526,14 @@ def main(argv=None):
     p.add_argument("--negative", type=int, default=2)
     p.add_argument("--prefix", default="step")
     p.add_argument("--label-style", choices=["utopia", "tailwind", "tshirt"], default="utopia")
+    add_register(p)
 
     p = sub.add_parser("space", help="fluid space palette and pairs")
     add_widths(p)
     add_space_args(p)
     p.add_argument("--px", action="store_true", help="px output (detach from text zoom)")
     p.add_argument("--prefix", default="space")
+    add_register(p)
 
     p = sub.add_parser("grid", help="fluid grid foundations from the space palette")
     add_widths(p)
@@ -477,8 +548,11 @@ def main(argv=None):
     p.add_argument("--format", choices=["css", "json", "table"], default="css")
     p.add_argument("--relative-to", choices=list(RELATIVE_UNITS), default="viewport-width")
     p.add_argument("--at", type=float)
+    add_register(p)
 
     a = ap.parse_args(argv)
+    if getattr(a, "register", False):
+        a.relative_to = "container"
 
     if a.cmd == "clamp":
         print(calculate_clamp(a.min_size, a.max_size, a.min_width, a.max_width, a.px, a.relative_to))
@@ -488,10 +562,12 @@ def main(argv=None):
         rows = []
         for pr in a.pairs:
             lo, hi = (float(v) for v in pr.split("-"))
-            rows.append({"label": f"{num(lo)}-{num(hi)}",
+            rows.append({"label": f"{num(lo)}-{num(hi)}", "minPx": lo,
                          "clamp": calculate_clamp(lo, hi, a.min_width, a.max_width, a.px, a.relative_to)})
         if a.format == "json":
             print(json.dumps(rows, indent=2))
+        elif a.register:
+            print(css_registered(registered_tokens(clamps=rows, space_prefix=a.prefix), a.container))
         else:
             print(":root {")
             for r in rows:
@@ -513,6 +589,8 @@ def main(argv=None):
             print(json.dumps(steps, indent=2))
         elif a.format == "table":
             print(table(steps, a.min_width, a.max_width, a.at))
+        elif a.register:
+            print(css_registered(registered_tokens(steps=steps, type_prefix=a.prefix), a.container, link))
         else:
             print(css_type(steps, a.prefix, link))
         return
@@ -527,6 +605,8 @@ def main(argv=None):
             elif a.format == "table":
                 print(table(space["sizes"] + space["oneUpPairs"] + space["customPairs"],
                             a.min_width, a.max_width, a.at))
+            elif a.register:
+                print(css_registered(registered_tokens(space=space, space_prefix=a.prefix, use_px=a.px), a.container))
             else:
                 print(css_space(space, a.prefix, a.px, None, a.all_pairs))
         else:
@@ -563,6 +643,10 @@ def main(argv=None):
                                       cfg["minWidth"], cfg["maxWidth"], a.at))
             print(f"\nGRID\ncolumns: {grid['columns']}, gutter {grid['gutterLabel']}, "
                   f"max width {grid['maxWidthPx']}px ({grid['maxWidthRem']}rem)")
+        elif a.register:
+            print(css_registered(registered_tokens(steps=steps, space=space), a.container, link))
+            print()
+            print(css_grid(grid, "space"))
         else:
             print(css_type(steps, "step", link))
             print()

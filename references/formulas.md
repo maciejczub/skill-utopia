@@ -226,3 +226,24 @@ ancestor of space pairs.
 The clamp formula itself can live in CSS custom properties (`--f-0-slope`,
 `--f-0-intersection`) to keep min/max editable, at the cost of readability. Precalculated
 `clamp()` is what Utopia ships by default.
+
+## 8. Container units and registered custom properties
+
+Container query length units (`cqw`, `cqh`, `cqi`, `cqb`, `cqmin`, `cqmax`) are 1% of
+the **nearest ancestor** query container's content box on that axis; an element is never
+its own container. With no eligible container they equal the small viewport units
+(`svi` for `cqi`). Children inherit *computed* values, not the units.
+
+Custom properties differ in *when* they compute:
+
+| | Unregistered `--x` | Registered `@property --x { syntax: "<length>" }` |
+| --- | --- | --- |
+| Stored value | raw token stream (`clamp(... cqi ...)`) | computed absolute length (px) |
+| Resolved | at each `var(--x)` site, against that element's container | once, on the element where `--x` is declared |
+| Inherited | as text, re-resolved per element | as the computed px value |
+
+Hence the anchoring recipe: register the token, declare it on `.wrapper > *` (so the
+nearest container of the declaring element is the wrapper), keep an unregistered twin to
+re-evaluate elsewhere. `initial-value` must be *computationally independent* (`px`,
+`in`; not `em`, `rem`, `var()`), otherwise the registration is dropped. The clamp
+maths is unchanged; only `minWidth`/`maxWidth` become the wrapper's content widths.

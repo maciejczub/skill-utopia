@@ -1,6 +1,6 @@
 ---
 name: utopia
-description: Build fluid, breakpoint-free responsive typography, spacing and layout grids with the Utopia methodology (utopia.fyi). Use when asked for fluid type scales, fluid space tokens, clamp() values, responsive font sizes without media queries, t-shirt spacing, fluid grids/gutters, or when converting a Figma design with @min/@max artboards into CSS. Includes a generator script that reproduces the utopia.fyi calculators exactly.
+description: Build fluid, breakpoint-free responsive typography, spacing and layout grids with the Utopia methodology (utopia.fyi). Use when asked for fluid type scales, fluid space tokens, clamp() values, responsive font sizes without media queries, t-shirt spacing, fluid grids/gutters, container-query (cqi) fluid type, or when converting a Figma design with @min/@max artboards into CSS. Includes a generator script that reproduces the utopia.fyi calculators exactly.
 ---
 
 # Utopia: fluid type, space and grid
@@ -118,11 +118,46 @@ Rules of thumb:
   measure such as `max-width: 65ch` is fine left static.
 - Prefer `rem` (default). Use `--px` / `usePx: true` only for space you deliberately want
   independent of the user's text-size preference.
-- Fluid tokens relative to a **container** (`cqi`) let a component scale with its slot
-  instead of the viewport; generate with `--relative-to container` and give the parent
-  `container-type: inline-size`.
+- Fluid tokens relative to a **container** (`cqi`) let text and space scale with the
+  wrapper they live in instead of the viewport. See the next section before using them.
 - Utopia sets *values*, not usage. Which element gets which step is a design decision;
   document the mapping (e.g. `h1 → step 4`) in the project.
+
+## Container-relative tokens (optional profile)
+
+Use when the viewport is a poor proxy for the space text lives in: several wrappers of
+different widths, components reused in sidebars/modals/embeds, design systems rendered
+in Storybook or micro-frontends, or a token whose @max exceeds the wrapper's `max-width`
+(text keeps growing after the layout stopped). With one wrapper whose max width equals
+the @max viewport, the default `vw` tokens already behave; skip this.
+
+Naive `cqi` has a trap: units resolve against the *nearest ancestor* query container,
+so once cards become containers for `@container` queries, the same `var(--step-2)`
+renders a different size in every card. Fix (Kevin Powell, after Ana Tudor): register
+the token with `@property` so it is computed where declared and inherited as a length,
+then declare it on the wrapper's children.
+
+```bash
+python3 scripts/utopia.py type --min-width 324 --max-width 1160 --register --container .u-container
+python3 scripts/utopia.py from-url "<utopia.fyi url>" --register   # type + space tokens
+```
+
+Rules the output follows, and you must keep when hand-writing it:
+- `@property --step-N { syntax: "<length>"; initial-value: <px>; inherits: true; }`.
+  **`initial-value` must be px.** `rem`/`em` are not "computationally independent";
+  Chrome and Firefox then drop the whole `@property` silently and the inconsistency
+  comes back.
+- Keep an unregistered twin (`--step-N-reset`) holding the raw `clamp(... cqi ...)`;
+  assign `--step-N: var(--step-N-reset)` on `:root` (fallback, resolves against the
+  small viewport) and on `.u-container > *`.
+- **Declare on the container's children, never on the container itself.** An element is
+  not its own query container; declared on `.card`, a token still measures the wrapper.
+  To scale a token to a nested container, assign the `-reset` twin on `.card > *`.
+- `cqi` measures the container's **content box**. Pass @min/@max as content widths
+  (viewport minus gutters, e.g. 360 − 2×18 = 324 and 1240 − 2×40 = 1160), or make the
+  container an element without inline padding.
+- `container-type: inline-size` on the wrapper is required; naming it is optional.
+  The WCAG 1.4.4 check still applies, with the container widths as @min/@max.
 
 ## Pitfalls and how to handle them
 
@@ -164,7 +199,7 @@ Ratio presets: 1.067, 1.125, 1.2, 1.25, 1.333, 1.414, 1.5, 1.618, 1.667, 1.778, 
 - `references/formulas.md`: the maths for clamp, type, space, grid, the WCAG check,
   calculator URL format, and the older CSS-locks / "fluid custom properties" variants.
 - `references/css-patterns.md`: fuller CSS recipes (flow, grid areas, prose spacing,
-  container queries, step overrides, SCSS/PostCSS snippets).
+  container-relative tokens with `@property`, step overrides, SCSS/PostCSS snippets).
 - `references/tooling.md`: script CLI, `utopia-core` (JS/TS), `utopia-core-scss`,
   `postcss-utopia`, Figma plugins and the Kickstarter file.
 - `references/design-workflow.md`: designer-side process (choosing poles, grid design
