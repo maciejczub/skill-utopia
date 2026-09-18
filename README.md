@@ -76,7 +76,7 @@ Techniques covered, with their sources on utopia.fyi:
 | Fluid space palette, t-shirt sizes, one-up and custom pairs, flow utility | Space calculator; *Painting with a fluid space palette*; *Designing with a fluid space palette*; *Generate all pair permutations* |
 | Fluid grid: gutters and columns from the palette, container max width | Grid calculator; *Designing a Utopian layout grid* |
 | WCAG 1.4.4 check for fluid text | `utopia-core` |
-| Container-relative tokens (`cqi`) anchored to one wrapper with `@property` (`--register`) | Kevin Powell, *Fixing fluid typography* (2026); Ana Tudor, *Using container query units relative to an outer container* |
+| Container-relative tokens (`cqi`) anchored to one wrapper with `@property` (`--register`) | Kevin Powell, *Fixing fluid typography* (2026); Ana Tudor, *Using container query units relative to an outer container*; Victor Ayomipo, *Stop Treating CSS Container Queries Like Traditional Media Queries* (Smashing Magazine, 2026) |
 | `utopia-core`, `utopia-core-scss`, `postcss-utopia` | *Utopia SCSS library*; *Readable clamp() with PostCSS Utopia* |
 | Figma plugins, variables and modes, Kickstarter file | *Getting started with Utopia Figma plugins*; *Figma variables*; *Figma plugin and kickstarter V2*; *Utopian project kickstarter* |
 | Type scale graphs and the introduction video | *Type scale graphs*; *A video introduction to Utopia*; *Fluid responsive typography: easy when you know how* |

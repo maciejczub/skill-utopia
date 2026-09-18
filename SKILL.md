@@ -129,7 +129,10 @@ Use when the viewport is a poor proxy for the space text lives in: several wrapp
 different widths, components reused in sidebars/modals/embeds, design systems rendered
 in Storybook or micro-frontends, or a token whose @max exceeds the wrapper's `max-width`
 (text keeps growing after the layout stopped). With one wrapper whose max width equals
-the @max viewport, the default `vw` tokens already behave; skip this.
+the @max viewport, the default `vw` tokens already behave; skip this. Rule of thumb:
+viewport (`vw`) tokens are the **macro** layer (page structure, headings in the main
+column); container-anchored tokens are the **micro** layer (components reused in several
+contexts). Don't replace one with the other wholesale.
 
 Naive `cqi` has a trap: units resolve against the *nearest ancestor* query container,
 so once cards become containers for `@container` queries, the same `var(--step-2)`
@@ -157,7 +160,13 @@ Rules the output follows, and you must keep when hand-writing it:
   (viewport minus gutters, e.g. 360 − 2×18 = 324 and 1240 − 2×40 = 1160), or make the
   container an element without inline padding.
 - `container-type: inline-size` on the wrapper is required; naming it is optional.
-  The WCAG 1.4.4 check still applies, with the container widths as @min/@max.
+  Never `container-type: size`: it also contains the block axis, so an element without
+  an explicit height collapses to 0.
+- The same "not its own container" rule applies to `@container` queries: a card that
+  switches layout must query a wrapper above it (`.card` container, rules on
+  `.card__body`), and query thresholds must be literal lengths (`40ch`, `30rem`), never
+  `var(--grid-max-width)` or a space token.
+- The WCAG 1.4.4 check still applies, with the container widths as @min/@max.
 
 ## Pitfalls and how to handle them
 

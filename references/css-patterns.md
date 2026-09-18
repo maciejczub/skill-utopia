@@ -181,6 +181,14 @@ gave 25.92px in the cards; the opt-in card re-evaluates to 25.92px).
 - Accessibility: a container capped in rem behaves like the viewport under text zoom
   until it hits `max-width`; run the WCAG check with the container widths as @min/@max.
 - Baseline: `@property` and container units are widely available since 2024.
+- Macro vs micro (Victor Ayomipo, Smashing Magazine 2026): keep viewport tokens for
+  page-level structure and reach for container-anchored tokens only where a component
+  appears in several layout contexts.
+- `container-type: inline-size` only. `size` adds block-axis containment and collapses
+  any element without an explicit height to 0.
+- `@container` conditions cannot read custom properties (`@container (min-width:
+  var(--grid-max-width))` is invalid); write literal lengths. And a container cannot
+  query itself: put the queried rules on descendants of the container.
 
 ## Overriding a step systematically
 
